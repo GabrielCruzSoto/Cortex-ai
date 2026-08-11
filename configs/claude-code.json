@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "notebooklm": {
+      "type": "stdio",
+      "command": "notebooklm-mcp"
+    },
+    "google-drive": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@piotr-agier/google-drive-mcp"]
+    },
+    "engram": {
+      "command": "/home/linuxbrew/.linuxbrew/bin/engram",
+      "args": ["mcp", "--tools=agent"]
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "notebooklm": {
+    "type": "local",
+    "command": ["notebooklm-mcp"],
+    "enabled": true
+  }
+}

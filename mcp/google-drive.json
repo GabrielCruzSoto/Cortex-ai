@@ -1,0 +1,7 @@
+{
+  "google-drive": {
+    "type": "local",
+    "enabled": true,
+    "command": ["npx", "-y", "@piotr-agier/google-drive-mcp"]
+  }
+}

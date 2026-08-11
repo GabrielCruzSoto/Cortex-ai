@@ -1,0 +1,18 @@
+{
+  "mcp": {
+    "notebooklm": {
+      "type": "local",
+      "command": ["notebooklm-mcp"],
+      "enabled": true
+    },
+    "google-drive": {
+      "type": "local",
+      "enabled": true,
+      "command": ["npx", "-y", "@piotr-agier/google-drive-mcp"]
+    },
+    "engram": {
+      "command": ["engram", "mcp", "--tools=agent"],
+      "type": "local"
+    }
+  }
+}
