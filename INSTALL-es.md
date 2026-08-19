@@ -10,7 +10,7 @@ Esta guía cubre la instalación de CORTEX-AI para **OpenCode**, **Claude Code**
 
 | Herramienta | Cómo Instalar | Propósito |
 |------|---------------|---------|
-| **Node.js** >= 18 | `brew install node` o [nodejs.org](https://nodejs.org) | Requerido por `google-drive-mcp` (se ejecuta vía `npx`) |
+| **Node.js** >= 18 | `brew install node` o [nodejs.org](https://nodejs.org) | Requerido por `google-drive-mcp` y `github-mcp` (se ejecutan vía `npx`) |
 | **Python** >= 3.12 | `brew install python` o [python.org](https://python.org) | Requerido por `uv` (gestor de paquetes para notebooklm-mcp) |
 
 ### Instalar Servidores MCP
@@ -45,12 +45,22 @@ No se requiere autenticación manual — el servidor MCP maneja OAuth en la prim
 
 #### engram (opcional, recomendado)
 
-```bash
-# Vía Homebrew
-brew install gentle-ai/gentle-ai/engram
-```
+Instalar desde: [github.com/Gentleman-Programming/engram](https://github.com/Gentleman-Programming/engram)
 
 Si no se usa engram, CORTEX-AI usará los READMEs de Drive para las referencias cruzadas.
+
+#### github-mcp (opcional, para integración Git)
+
+```bash
+# Crear un Token de Acceso Personal de GitHub en:
+# https://github.com/settings/tokens
+# Scopes requeridos: repo (control total de repositorios privados)
+
+# Exportar el token
+export GITHUB_TOKEN=ghp_your_token_here
+```
+
+El servidor GitHub MCP se ejecuta vía `npx` — no requiere instalación separada. Se configura en la sección MCP del agente (ver abajo).
 
 ---
 
@@ -74,6 +84,18 @@ Agregar a la sección `mcp`:
       "type": "local",
       "enabled": true,
       "command": ["npx", "-y", "@piotr-agier/google-drive-mcp"]
+    },
+    "engram": {
+      "command": ["engram", "mcp", "--tools=agent,batch"],
+      "type": "local"
+    },
+    "github": {
+      "type": "local",
+      "command": ["npx", "-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      },
+      "enabled": true
     }
   }
 }
@@ -107,6 +129,18 @@ Agregar a la sección `mcpServers` (combinar con entradas existentes):
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "@piotr-agier/google-drive-mcp"]
+    },
+    "engram": {
+      "command": "/home/linuxbrew/.linuxbrew/bin/engram",
+      "args": ["mcp", "--tools=agent,batch"]
+    },
+    "github": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      }
     }
   }
 }
@@ -140,6 +174,18 @@ Agregar a la sección `mcpServers`:
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "@piotr-agier/google-drive-mcp"]
+    },
+    "engram": {
+      "command": "/home/linuxbrew/.linuxbrew/bin/engram",
+      "args": ["mcp", "--tools=agent,batch"]
+    },
+    "github": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      }
     }
   }
 }
@@ -174,6 +220,18 @@ Agregar a la sección `mcp` (formato similar a OpenCode):
       "type": "local",
       "enabled": true,
       "command": ["npx", "-y", "@piotr-agier/google-drive-mcp"]
+    },
+    "engram": {
+      "command": ["engram", "mcp", "--tools=agent,batch"],
+      "type": "local"
+    },
+    "github": {
+      "type": "local",
+      "command": ["npx", "-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      },
+      "enabled": true
     }
   }
 }
@@ -196,30 +254,98 @@ Una vez configurados los servidores MCP e instalados los skills, inicializa tu p
 2. Di: **"init cortex"** o **"inicializar segundo cerebro"**.
 
 El skill `cortex-ai-init` hará lo siguiente:
+- Preguntar si quieres asignar el proyecto a un **equipo** (opcional).
 - Crear una carpeta raíz `CORTEX-AI/` en Google Drive (si no existe).
-- Crear una subcarpeta del proyecto (`CORTEX-AI/{slug-del-proyecto}/`).
+- Crear una subcarpeta del proyecto (`CORTEX-AI/{slug-del-proyecto}/` o `CORTEX-AI/{slug-equipo}/{slug-del-proyecto}/`).
 - Generar y subir un `README.md` con los metadatos del proyecto.
 - Subir toda la documentación del proyecto (`.md`, `.pdf`, `.drawio`, `.docx`, `.xlsx`, imágenes) a Drive.
 - Crear un notebook de Google NotebookLM indexado con esos documentos.
 - Persistir la referencia cruzada (ID de proyecto ↔ ID de carpeta Drive ↔ ID de Notebook).
+- Opcionalmente sincronizar el contexto Git (commits, PRs, issues) si el proyecto es un repositorio Git.
+- Opcionalmente instalar hooks de auto-sync para sincronización automática de documentación.
 
 ---
 
 ## 4. Flujo de Trabajo Diario
 
 ```
-init cortex     → Una vez por proyecto
-push cortex     → Después de escribir/cambiar docs, specs, decisiones
-ask cortex      → Preguntar sobre decisiones, specs, historial del proyecto
-status cortex   → Revisar salud del sistema
-onboard         → Retomar trabajo después de inactividad
-reindex         → Reconstruir un notebook corrupto (rara vez necesario)
-cross search    → Encontrar algo en todos los proyectos
+init cortex         → Una vez por proyecto (con equipo opcional, sync Git, auto-sync)
+push cortex         → Después de escribir/cambiar docs, specs, decisiones
+ask cortex          → Preguntar sobre decisiones, specs, historial del proyecto
+status cortex       → Revisar salud del sistema en todos los proyectos
+onboard             → Retomar trabajo después de inactividad (incluye resumen de actividad Git)
+reindex             → Reconstruir un notebook corrupto (rara vez necesario)
+cross search        → Encontrar algo en todos los proyectos (con paginación y filtro por equipo)
+git sync            → Sincronizar metadata Git (commits, PRs, issues) a Drive/NotebookLM
+git context         → Consultar actividad Git de un proyecto
+team                → Crear/listar namespaces de equipo
+team status         → Reporte de salud para un equipo o comparativa entre equipos
+autosync setup      → Instalar hooks de Git para auto-sync
+check autosync      → Procesar marcadores de sync pendiente
+cleanup             → Archivar proyectos inactivos, limpiar fuentes obsoletas
 ```
 
 ---
 
-## 5. Solución de Problemas
+## 5. Equipos (Opcional)
+
+Los equipos permiten organizar proyectos en namespaces. Los proyectos viven bajo `CORTEX-AI/{slug-equipo}/{slug-proyecto}/` en lugar de `CORTEX-AI/{slug-proyecto}/`.
+
+### Crear un Equipo
+
+```
+Di: "create team backend" o "crear equipo frontend"
+```
+
+### Usar un Equipo Durante Init
+
+```
+Di: "init cortex --team backend" o "init cortex con equipo frontend"
+```
+
+### Listar Todos los Equipos
+
+```
+Di: "list teams" o "listar equipos"
+```
+
+### Status Filtrado por Equipo
+
+```
+Di: "team status backend" o "status equipo frontend"
+```
+
+---
+
+## 6. Auto-Sync (Opcional)
+
+El auto-sync instala hooks de Git que encolan cambios de documentación para sincronización automática.
+
+### Habilitar Durante Init
+
+Al ejecutar `cortex-ai-init` en un repositorio Git, se preguntará: "¿Habilitar sincronización automática de documentación en commit/push?"
+
+### Habilitar Manualmente
+
+```
+Di: "setup autosync" o "configurar sync automatico"
+```
+
+### Cómo Funciona
+
+1. **Hook post-commit** — Después de cada commit, si cambiaron archivos de documentación (`.md`, `.pdf`, etc.), se encolan en `.cortex-ai/pending-sync`.
+2. **Hook post-push** — Después de cada push, se encola un sync completo.
+3. **Al inicio de sesión** — Di "check autosync" o el agente verifica automáticamente. Los syncs pendientes se procesan vía `cortex-ai-push`.
+
+### Deshabilitar Auto-Sync
+
+```bash
+rm .git/hooks/post-commit .git/hooks/post-push
+```
+
+---
+
+## 7. Solución de Problemas
 
 ### "notebooklm-mcp: command not found"
 
@@ -237,6 +363,12 @@ El servidor MCP maneja OAuth de forma interactiva. Si falla:
 1. Asegúrate de que haya un navegador disponible para el flujo OAuth.
 2. Verifica que `npx` funcione: `npx --version`.
 
+### "GitHub MCP no funciona"
+
+1. Asegúrate de que `GITHUB_TOKEN` esté exportado: `echo $GITHUB_TOKEN`
+2. Verifica que el token tenga scope `repo` en https://github.com/settings/tokens
+3. Verifica que el servidor MCP inicie: `npx -y @modelcontextprotocol/server-github`
+
 ### "NotebookLM dice que no hay fuentes"
 
 Ejecuta `push cortex` para sincronizar los docs locales a Drive y NotebookLM. Si los docs ya están en Drive pero no indexados, ejecuta `reindex`.
@@ -247,9 +379,15 @@ Ejecuta `push cortex` para sincronizar los docs locales a Drive y NotebookLM. Si
 - Revisa que el agente soporte carga de skills desde ese directorio.
 - Para OpenCode, el plugin `skill-registry` indexa automáticamente los skills al iniciar.
 
+### "El auto-sync no se activa"
+
+1. Verifica que los hooks estén instalados: `ls -la .git/hooks/post-commit .git/hooks/post-push`
+2. Verifica que los hooks sean ejecutables: `chmod +x .git/hooks/post-commit .git/hooks/post-push`
+3. Revisa si hay sync pendiente: `cat .cortex-ai/pending-sync`
+
 ---
 
-## 6. Snippets de Configuración MCP por Agente
+## 8. Snippets de Configuración MCP por Agente
 
 Los archivos de configuración listos para usar están en `configs/`:
 
@@ -262,7 +400,7 @@ Los archivos de configuración listos para usar están en `configs/`:
 
 ---
 
-## 7. Referencia de Ubicaciones de Archivos
+## 9. Referencia de Ubicaciones de Archivos
 
 | Artefacto | Ruta |
 |----------|------|
@@ -277,4 +415,8 @@ Los archivos de configuración listos para usar están en `configs/`:
 | Binario notebooklm-mcp | `~/.local/bin/notebooklm-mcp` (vía `uv`) |
 | Origen notebooklm-mcp | `uv tool install notebooklm-mcp-cli` |
 | google-drive-mcp | `npx @piotr-agier/google-drive-mcp` (bajo demanda) |
+| github-mcp | `npx @modelcontextprotocol/server-github` (bajo demanda) |
 | engram | `/home/linuxbrew/.linuxbrew/bin/engram` (vía brew) |
+| Variable GITHUB_TOKEN | `export GITHUB_TOKEN=ghp_...` |
+| Marcadores auto-sync | `.cortex-ai/pending-sync` (por proyecto) |
+| Última ejecución auto-sync | `.cortex-ai/last-sync` (por proyecto) |

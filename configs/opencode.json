@@ -13,6 +13,14 @@
     "engram": {
       "command": ["engram", "mcp", "--tools=agent"],
       "type": "local"
+    },
+    "github": {
+      "type": "local",
+      "command": ["npx", "-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      },
+      "enabled": true
     }
   }
 }

@@ -1,10 +1,10 @@
 ---
 name: cortex-ai-push
-description: "Trigger: push cortex, sync docs, publicar documentacion, subir docs. Sync changed docs to Drive and NotebookLM for a registered CORTEX-AI project."
+description: "Trigger: push cortex, sync docs, publicar documentacion, subir docs. Sync changed docs to Drive and NotebookLM for a registered CORTEX-AI project (supports team-scoped projects)."
 license: Apache-2.0
 metadata:
   author: "gabrielcruzsoto"
-  version: "1.0"
+  version: "1.2"
 ---
 
 # cortex-ai-push
@@ -22,6 +22,7 @@ Do NOT activate if the project has no `CORTEX-AI` registration — suggest `cort
 - If a source already exists in the notebook (by filename slug), replace only that single source — do NOT reindex the whole notebook.
 - Preserve the local subdirectory structure when uploading to Drive.
 - NotebookLM sources MUST use the uploaded Drive documents as primary sources via `source_type=drive`; fall back to `source_type=file` or `source_type=text` only when a file type is unsupported by NotebookLM Drive indexing.
+- If the project is a Git repository and the GitHub MCP is available, run `cortex-ai-git-sync` as a final step to update the git context alongside docs.
 
 ## Decision Gates
 
@@ -33,15 +34,17 @@ Do NOT activate if the project has no `CORTEX-AI` registration — suggest `cort
 | Source already exists in notebook (same filename slug) | Replace only that source via delete + add |
 | Source file type unsupported by NotebookLM Drive indexing | Fall back to `source_type=file` (local path) for images/drawio, `source_type=text` for markdown |
 | No local files modified since last push | Report clean state; no-op |
+| Project is a Git repo with GitHub MCP | Run `cortex-ai-git-sync` after step 7 |
+| Project is a Git repo without GitHub MCP | Skip git sync; note in output |
 
 ## Execution Steps
 
-1. **Resolve project record.** Search Engram for `cortex-ai/{project-slug}`. If not found, use `search` with `query: "name = 'README.md' and fullText contains '{project-id}'"` scoped to the project's Drive folder to locate it. Extract: project ID, Drive folder ID, notebook ID.
+1. **Resolve project record.** Search Engram for `cortex-ai/{project-slug}` (standalone) or `cortex-ai/{team-slug}/{project-slug}` (team-scoped). If not found, use `search` with `query: "name = 'README.md' and fullText contains '{project-id}'"` scoped to the project's Drive folder to locate it. Extract: project ID, Drive folder ID, notebook ID, team membership (if any).
 2. **Detect changes.** List local `docs/`, specs, and project README files. Compare modification timestamps against the last push timestamp stored in the cross-reference.
 3. **Upload to Drive.** For each modified or new file, upload using the appropriate method:
    - For `.md` files: call `createTextFile(name=<filename>, content=<content>, parentFolderId=<drive-parent-path>)`.
    - For binary files (`.drawio`, `.doc`, `.docx`, `.xls`, `.xlsx`, `.jpg`, `.jpeg`, `.png`, `.pdf`): call `uploadFile(localPath=<absolute-path>, parentFolderId=<drive-parent-path>)`. For Office files (`.doc`, `.docx`, `.xls`, `.xlsx`), set `convertToGoogleFormat: true`.
-   - Preserve the local subdirectory structure by constructing the Drive parent path as `CORTEX-AI/{project-slug}/{relative-dir}`. The `parentFolderId` parameter supports path syntax and creates intermediate folders automatically.
+   - Preserve the local subdirectory structure by constructing the Drive parent path as `{drive-parent-path}/{project-slug}/{relative-dir}`, where `drive-parent-path` is either `CORTEX-AI/{team-slug}` (for team-scoped projects) or `CORTEX-AI` (for standalone projects). The `parentFolderId` parameter supports path syntax and creates intermediate folders automatically.
    - Collect all resulting Drive file IDs, grouped by file type, for the notebook import step.
 4. **Update README timestamp.** Call `readTextFile(fileId)` on the project's Drive README, update the "Fecha de última actualización" field to current ISO-8601, then call `updateTextFile(fileId, content: updated_readme)` to persist it.
 5. **Add to NotebookLM from Drive.** Add the uploaded Drive documents as notebook sources using the best available method per file type:
@@ -52,7 +55,8 @@ Do NOT activate if the project has no `CORTEX-AI` registration — suggest `cort
    - **Images** (`.jpg`, `.jpeg`, `.png`) and **diagrams** (`.drawio`): `notebooklm_source_add(source_type="file", file_path=<local-absolute-path>)`
    - If a source already exists in the notebook (by filename slug), delete it first via `notebooklm_source_delete` then re-add. Track which sources succeed and which fail.
 6. **Verify notebook count.** Call `notebooklm_notebook_get` and confirm the source count increased or updated as expected.
-7. **Update cross-reference.** Call `mem_save` with topic key `cortex-ai/{project-slug}`, updating the last-push timestamp and pending-indexing list.
+7. **Update cross-reference.** Call `mem_save` with the appropriate topic key (`cortex-ai/{project-slug}` or `cortex-ai/{team-slug}/{project-slug}`), updating the last-push timestamp and pending-indexing list.
+8. **Git sync (optional).** Check if `.git/` exists in the project root AND the GitHub MCP is available. If both conditions are met, invoke `cortex-ai-git-sync` to refresh `git-context.md` with the latest commits, PRs, and issues. This step is independent of the doc sync — if it fails, it does not affect the doc sync status.
 
 ## Output Contract
 
@@ -62,8 +66,10 @@ CORTEX-AI push complete for {project-name}
   Added/updated in Notebook: {n} sources — {list}
   Pending (retry next push): {n} — {list with reason}
   Last push timestamp: {iso-8601}
+  Git sync: {completed | skipped | not-a-repo | no-mcp}
 ```
 
 ## References
 
 - `cortex-ai-init` — prerequisite skill for project registration.
+- `cortex-ai-git-sync` — syncs Git repository metadata (invoked in step 8).

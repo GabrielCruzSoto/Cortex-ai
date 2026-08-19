@@ -12,6 +12,14 @@
     "engram": {
       "command": "/home/linuxbrew/.linuxbrew/bin/engram",
       "args": ["mcp", "--tools=agent"]
+    },
+    "github": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      }
     }
   }
 }
