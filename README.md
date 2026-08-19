@@ -29,42 +29,44 @@
 │                                                      │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐          │
 │  │  Skills  │  │   MCP    │  │   MCP    │          │
-│  │ (9)      │  │notebooklm│  │google-dri│          │
+│  │ (10)     │  │notebooklm│  │google-dri│          │
 │  └──────────┘  └────┬─────┘  └────┬─────┘          │
 │                      │             │                 │
-│  ┌──────────┐  ┌─────┴─────┐      │                 │
-│  │   MCP    │  │   MCP    │      │                 │
-│  │  engram  │  │  github   │      │                 │
-│  └────┬─────┘  └─────┬─────┘      │                 │
-└───────┼──────────────┼─────────────┼────────────────┘
-        │              │             │
-        ▼              ▼             ▼
+│  ┌──────────┐  ┌─────┴─────┐  ┌───┴───────┐        │
+│  │   MCP    │  │   MCP    │  │   MCP    │        │
+│  │  engram  │  │  github   │  │codegraph  │        │
+│  └────┬─────┘  └─────┬─────┘  └─────┬─────┘        │
+└───────┼──────────────┼───────────────┼──────────────┘
+        │              │               │
+        ▼              ▼               ▼
 ┌───────────┐  ┌─────────────┐  ┌──────────────┐
 │  ENGRAM   │  │ NOTEBOOKLM  │  │ GOOGLE DRIVE │
 │ Cross-ref │  │  Google AI  │  │  File Store  │
 │ Persist.  │  │  Semantic   │  │  (source of  │
 │  Memory   │  │   Search    │  │   truth)     │
 └───────────┘  └─────────────┘  └──────────────┘
-        │
-        ▼
-┌───────────────┐
-│    GITHUB     │
-│  Commits, PRs │
-│  Issues, etc. │
-└───────────────┘
+        │                              │
+        ▼                              ▼
+┌───────────────┐            ┌──────────────────┐
+│    GITHUB     │            │   CODEGRAPH      │
+│  Commits, PRs │            │  Source code     │
+│  Issues, etc. │            │  index, symbols, │
+└───────────────┘            │  call graphs     │
+                             └──────────────────┘
 ```
 
 ### Components
 
 | Component | Technology | Role |
 |-----------|-----------|------|
-| **Skills** (14) | Markdown instruction files | Expert workflows that teach agents how to use the second brain |
+| **Skills** (15) | Markdown instruction files | Expert workflows that teach agents how to use the second brain |
 | **Google Drive** | MCP `@piotr-agier/google-drive-mcp` | Stores project docs, specs, READMEs — the source of truth |
 | **Google NotebookLM** | MCP `notebooklm-mcp-cli` | Indexes Drive documents, provides semantic search and summaries |
 | **Engram** | CLI `engram` | Persistent cross-reference memory — maps project IDs → Drive folder IDs → Notebook IDs |
 | **GitHub** | MCP `@modelcontextprotocol/server-github` | Reads commits, PRs, and issues for Git context sync |
+| **CodeGraph** | CLI `codegraph` | Source code index with symbol navigation, call graphs, and impact analysis |
 
-## The Fourteen Skills
+## The Fifteen Skills
 
 | Skill | Trigger | What It Does |
 |-------|---------|--------------|
@@ -82,6 +84,7 @@
 | `cortex-ai-team` | "create team", "crear equipo", "list teams" | Create and manage team namespaces for organizing projects |
 | `cortex-ai-status-team` | "team status", "status equipo", "team health" | Health report scoped to a specific team or cross-team comparison |
 | `cortex-ai-cleanup` | "cleanup", "archivar", "archive project", "limpiar" | Archive inactive projects, clean stale sources, generate storage reports |
+| `cortex-ai-codegraph` | "codegraph", "explore code", "find symbol", "who calls", "impact analysis", "que usa esto", "que rompe esto" | Explore codebase structure and symbols via CodeGraph MCP — complements documentation with code intelligence |
 
 ## Project Structure
 
@@ -109,6 +112,7 @@ cortex-ai/
 │   │   └── assets/team-readme-template.md
 │   ├── cortex-ai-status-team/SKILL.md
 │   ├── cortex-ai-cleanup/SKILL.md
+│   ├── cortex-ai-codegraph/SKILL.md
 │   ├── cortex-ai-init/
 │   │   ├── SKILL.md
 │   │   └── assets/readme-template.md
@@ -120,7 +124,8 @@ cortex-ai/
 │   ├── notebooklm.json
 │   ├── google-drive.json
 │   ├── engram.json
-│   └── github.json
+│   ├── github.json
+│   └── codegraph.json
 ├── configs/                     # Per-agent ready-to-use configs
 │   ├── opencode.json
 │   ├── claude-code.json
@@ -136,6 +141,7 @@ cortex-ai/
 - **notebooklm-mcp** — MCP server for NotebookLM (`uv tool install notebooklm-mcp-cli`).
 - **google-drive-mcp** — MCP server for Google Drive (`npx @piotr-agier/google-drive-mcp`).
 - **engram** — optional but recommended, for cross-reference persistence.
+- **codegraph** — optional but recommended, for code intelligence and symbol navigation (`curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh`).
 - **Node.js** — required by the google-drive MCP (`npx`).
 - **GitHub Personal Access Token** — optional, for Git context sync (`GITHUB_TOKEN` env var).
 
