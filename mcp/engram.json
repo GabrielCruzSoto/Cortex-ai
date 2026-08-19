@@ -1,6 +1,6 @@
 {
   "engram": {
-    "command": ["engram", "mcp", "--tools=agent"],
+    "command": ["engram", "mcp", "--tools=agent,batch"],
     "enabled": true,
     "type": "local"
   }

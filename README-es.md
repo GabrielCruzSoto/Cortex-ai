@@ -10,6 +10,11 @@
 - **Resúmenes de retorno** — retoma el trabajo después de días o semanas con un resumen ejecutivo generado por IA.
 - **Panel de salud del sistema** — ve qué proyectos están sincronizados, pendientes de indexación o necesitan atención.
 - **Soporte multi-agente** — funciona con OpenCode, Claude Code, Gemini CLI y cualquier agente que soporte servidores MCP.
+- **Integración Git** — sincroniza commits, PRs e issues al segundo cerebro para contexto completo del proyecto.
+- **Auto-sync** — hooks de Git encolan automáticamente los cambios de documentación para sincronizar en commit/push.
+- **Organización por equipos** — agrupa proyectos en namespaces de equipo para gestión organizada.
+- **Búsqueda escalable** — cross-search paginado con filtro por equipo para despliegues grandes.
+- **Limpieza y archivado** — archiva proyectos inactivos y limpia fuentes de notebook obsoletas.
 
 ## Arquitectura
 
@@ -20,13 +25,13 @@
 │                                                      │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐          │
 │  │  Skills  │  │   MCP    │  │   MCP    │          │
-│  │   (7)    │  │notebooklm│  │google-dri│          │
+│  │  (9)     │  │notebooklm│  │google-dri│          │
 │  └──────────┘  └────┬─────┘  └────┬─────┘          │
 │                      │             │                 │
-│  ┌──────────┐        │             │                 │
-│  │   MCP    │        │             │                 │
-│  │  engram  │        │             │                 │
-│  └────┬─────┘        │             │                 │
+│  ┌──────────┐  ┌─────┴─────┐      │                 │
+│  │   MCP    │  │   MCP    │      │                 │
+│  │  engram  │  │  github   │      │                 │
+│  └────┬─────┘  └─────┬─────┘      │                 │
 └───────┼──────────────┼─────────────┼────────────────┘
         │              │             │
         ▼              ▼             ▼
@@ -37,28 +42,43 @@
 │  memoria  │  │  semántica  │  │  (fuente de  │
 │persistente│  │             │  │   verdad)    │
 └───────────┘  └─────────────┘  └──────────────┘
+        │
+        ▼
+┌───────────────┐
+│    GITHUB     │
+│  Commits, PRs │
+│  Issues, etc. │
+└───────────────┘
 ```
 
 ### Componentes
 
 | Componente | Tecnología | Rol |
 |-----------|-----------|------|
-| **Skills** (7) | Archivos Markdown de instrucción | Flujos expertos que enseñan a los agentes a usar el segundo cerebro |
+| **Skills** (14) | Archivos Markdown de instrucción | Flujos expertos que enseñan a los agentes a usar el segundo cerebro |
 | **Google Drive** | MCP `@piotr-agier/google-drive-mcp` | Almacena docs del proyecto, specs, READMEs — la fuente de verdad |
 | **Google NotebookLM** | MCP `notebooklm-mcp-cli` | Indexa documentos de Drive, provee búsqueda semántica y resúmenes |
 | **Engram** | CLI `engram` | Memoria persistente de referencias cruzadas — mapea IDs de proyecto → IDs de carpeta Drive → IDs de Notebook |
+| **GitHub** | MCP `@modelcontextprotocol/server-github` | Lee commits, PRs e issues para sincronizar el contexto Git |
 
-## Los Siete Skills
+## Los Catorce Skills
 
 | Skill | Activadores | Qué Hace |
 |-------|---------|--------------|
-| `cortex-ai-init` | "init cortex", "inicializar cerebro" | Registra un proyecto: crea carpeta en Drive, README, notebook NotebookLM, referencia cruzada |
-| `cortex-ai-push` | "push cortex", "sync docs", "publicar documentacion" | Sincroniza docs locales modificados → Drive → NotebookLM (aditivo, nunca elimina) |
+| `cortex-ai-init` | "init cortex", "inicializar cerebro" | Registra un proyecto: crea carpeta en Drive, README, notebook NotebookLM, referencia cruzada + sync Git opcional + auto-sync opcional + soporte de equipos |
+| `cortex-ai-push` | "push cortex", "sync docs", "publicar documentacion" | Sincroniza docs locales modificados → Drive → NotebookLM + refresh de contexto Git opcional (soporta proyectos con equipo) |
 | `cortex-ai-ask` | "ask cortex", "pregunta sobre", "consulta" | Consulta el conocimiento del proyecto vía NotebookLM primero, docs locales como respaldo |
-| `cortex-ai-onboard` | "resume del proyecto", "ponme al dia", "executive summary" | Genera un resumen ejecutivo desde el notebook para retomar después de inactividad |
-| `cortex-ai-status` | "status del cerebro", "panorama", "how is the brain" | Reporte de salud de todo el sistema en TODOS los proyectos registrados |
-| `cortex-ai-cross-search` | "buscar en todos", "cross search", "en que proyecto ya" | Busca la misma consulta en TODOS los notebooks de proyectos a la vez |
+| `cortex-ai-onboard` | "resume del proyecto", "ponme al dia", "executive summary" | Genera un resumen ejecutivo desde el notebook + actividad Git para retomar después de inactividad |
+| `cortex-ai-status` | "status del cerebro", "panorama", "how is the brain" | Reporte de salud de todo el sistema en TODOS los proyectos registrados (incluye estado de sync Git + auto-sync) |
+| `cortex-ai-cross-search` | "buscar en todos", "cross search", "en que proyecto ya" | Busca la misma consulta en los notebooks con paginación y filtro por equipo |
 | `cortex-ai-reindex` | "reindexa", "rebuild notebook", "reconstruir notebook" | Reconstrucción destructiva de un notebook desde los contenidos de la carpeta Drive |
+| `cortex-ai-git-sync` | "sync git", "git context", "sincronizar git" | Sincroniza metadata del repositorio Git (commits, PRs, issues) a Drive y NotebookLM |
+| `cortex-ai-git-context` | "git context", "quién trabajó", "hay PRs" | Consulta la actividad Git de un proyecto desde el documento git-context sincronizado |
+| `cortex-ai-autosync-setup` | "setup autosync", "install hooks", "configurar sync automatico" | Instala hooks de Git para sincronización automática de documentación |
+| `cortex-ai-autosync-check` | "check autosync", "pending sync", "procesar sync" | Verifica marcadores de sync pendiente y ejecuta la sincronización encolada |
+| `cortex-ai-team` | "create team", "crear equipo", "list teams" | Crea y gestiona namespaces de equipo para organizar proyectos |
+| `cortex-ai-status-team` | "team status", "status equipo", "team health" | Reporte de salud filtrado por equipo o comparativo entre equipos |
+| `cortex-ai-cleanup` | "cleanup", "archivar", "archive project", "limpiar" | Archiva proyectos inactivos, limpia fuentes obsoletas, genera reportes de almacenamiento |
 
 ## Estructura del Proyecto
 
@@ -71,6 +91,21 @@ cortex-ai/
 ├── skills/                      # Definiciones de los skills CORTEX-AI
 │   ├── cortex-ai-ask/SKILL.md
 │   ├── cortex-ai-cross-search/SKILL.md
+│   ├── cortex-ai-git-context/SKILL.md
+│   ├── cortex-ai-git-sync/
+│   │   ├── SKILL.md
+│   │   └── assets/git-context-template.md
+│   ├── cortex-ai-autosync-setup/
+│   │   ├── SKILL.md
+│   │   └── assets/
+│   │       ├── post-commit.sh
+│   │       └── post-push.sh
+│   ├── cortex-ai-autosync-check/SKILL.md
+│   ├── cortex-ai-team/
+│   │   ├── SKILL.md
+│   │   └── assets/team-readme-template.md
+│   ├── cortex-ai-status-team/SKILL.md
+│   ├── cortex-ai-cleanup/SKILL.md
 │   ├── cortex-ai-init/
 │   │   ├── SKILL.md
 │   │   └── assets/readme-template.md
@@ -81,7 +116,8 @@ cortex-ai/
 ├── mcp/                         # Configs individuales de servidores MCP
 │   ├── notebooklm.json
 │   ├── google-drive.json
-│   └── engram.json
+│   ├── engram.json
+│   └── github.json
 ├── configs/                     # Configs listas para usar por agente
 │   ├── opencode.json
 │   ├── claude-code.json
@@ -98,6 +134,7 @@ cortex-ai/
 - **google-drive-mcp** — servidor MCP para Google Drive (`npx @piotr-agier/google-drive-mcp`).
 - **engram** — opcional pero recomendado, para persistencia de referencias cruzadas.
 - **Node.js** — requerido por el MCP de Google Drive (`npx`).
+- **Token de acceso personal de GitHub** — opcional, para sincronización del contexto Git (variable de entorno `GITHUB_TOKEN`).
 
 ## Inicio Rápido
 
